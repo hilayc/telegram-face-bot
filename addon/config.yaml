@@ -15,7 +15,7 @@ map:
   - config:rw
   - ssl:ro
 options:
-  bot_token: ""
+  TELEGRAM_BOT_API_TOKEN: ""
 schema:
-  bot_token: str
+  TELEGRAM_BOT_API_TOKEN: str
 
