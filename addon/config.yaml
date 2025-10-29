@@ -1,5 +1,5 @@
 name: Telegram Face Bot
-version: "0.1.7"
+version: "0.1.8"
 slug: telegram_face_bot
 description: Telegram bot that learns and recognizes faces from photos
 url: https://github.com/hilayc/telegram-face-bot
@@ -11,7 +11,8 @@ boot: auto
 init: false
 host_network: true
 map:
-  - addon_config:rw
+  - type: addon_config
+    read_only: false
 options:
   TELEGRAM_BOT_API_TOKEN: ""
 schema:
