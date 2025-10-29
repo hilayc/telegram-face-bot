@@ -53,6 +53,8 @@ TELEGRAM_BOT_API_TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
 TOLERANCE = float(os.getenv("FACE_MATCH_TOLERANCE", "0.45"))
 # Confidence threshold: best match must be at least this much better than second-best (reduces false positives)
 MIN_CONFIDENCE_MARGIN = float(os.getenv("FACE_MIN_CONFIDENCE_MARGIN", "0.03"))
+# For single-person cases, require distance to be this much below tolerance (prevents weak matches)
+REQUIRED_DISTANCE_BUFFER = float(os.getenv("FACE_REQUIRED_DISTANCE_BUFFER", "0.05"))
 # Detection model: 'hog' (CPU, fast) or 'cnn' (more accurate, slower)
 DETECTION_MODEL = os.getenv("FACE_DETECTION_MODEL", "hog").lower()
 # Increase jitters to make encodings more stable (slower but more accurate)
@@ -303,15 +305,20 @@ async def process_find_batch(update: Update, context: ContextTypes.DEFAULT_TYPE,
             best_distance = float(distances[best_idx])
             
             # Confidence check: best match should be significantly better than second-best
-            confident_match = True
+            confident_match = False
             if distances.size > 1:
+                # Multiple known faces: require margin between best and second-best
                 second_best_distance = float(distances[sorted_indices[1]])
                 confidence_margin = second_best_distance - best_distance
-                if confidence_margin < MIN_CONFIDENCE_MARGIN:
-                    # Second-best is too close, might be ambiguous/false positive
-                    confident_match = False
+                if best_distance <= TOLERANCE and confidence_margin >= MIN_CONFIDENCE_MARGIN:
+                    confident_match = True
+            else:
+                # Single known face: require distance to be significantly below tolerance
+                # This prevents weak matches that just barely pass the threshold
+                if best_distance <= (TOLERANCE - REQUIRED_DISTANCE_BUFFER):
+                    confident_match = True
             
-            if best_distance <= TOLERANCE and confident_match:
+            if confident_match:
                 match_found = True
                 name = known_names[best_idx]
                 matched_names.add(name)

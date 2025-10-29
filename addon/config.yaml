@@ -1,5 +1,5 @@
 name: Telegram Face Bot
-version: "0.1.14"
+version: "0.1.15"
 slug: telegram_face_bot
 description: Telegram bot that learns and recognizes faces from photos
 url: https://github.com/hilayc/telegram-face-bot
@@ -20,6 +20,7 @@ options:
   FACE_TRAIN_JITTERS: "2"
   FACE_FIND_JITTERS: "1"
   FACE_MIN_CONFIDENCE_MARGIN: "0.03"
+  FACE_REQUIRED_DISTANCE_BUFFER: "0.05"
   FACE_USE_MEAN_ENCODING: "true"
 schema:
   TELEGRAM_BOT_API_TOKEN: str
@@ -28,4 +29,5 @@ schema:
   FACE_TRAIN_JITTERS: int
   FACE_FIND_JITTERS: int
   FACE_MIN_CONFIDENCE_MARGIN: float
+  FACE_REQUIRED_DISTANCE_BUFFER: float
   FACE_USE_MEAN_ENCODING: str
