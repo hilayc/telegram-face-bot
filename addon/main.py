@@ -51,6 +51,8 @@ TELEGRAM_BOT_API_TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
 # Recognition tuning
 # Lower tolerance = stricter matching. Typical range: 0.4 (strict) to 0.6 (loose)
 TOLERANCE = float(os.getenv("FACE_MATCH_TOLERANCE", "0.45"))
+# Confidence threshold: best match must be at least this much better than second-best (reduces false positives)
+MIN_CONFIDENCE_MARGIN = float(os.getenv("FACE_MIN_CONFIDENCE_MARGIN", "0.03"))
 # Detection model: 'hog' (CPU, fast) or 'cnn' (more accurate, slower)
 DETECTION_MODEL = os.getenv("FACE_DETECTION_MODEL", "hog").lower()
 # Increase jitters to make encodings more stable (slower but more accurate)
@@ -212,7 +214,7 @@ async def queue_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     session["hashes"].add(photo_hash)
     session["find_photos"].append(bio)
-    await update.message.reply_text(f"Photo queued ({len(session['find_photos'])}).")
+    # await update.message.reply_text(f"Photo queued ({len(session['find_photos'])}).")
 
     if session.get("timer"):
         session["timer"].cancel()
@@ -221,7 +223,6 @@ async def queue_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(5)
         await update.message.reply_text(f"Processing photo batch...")
         await process_find_batch(update, context, user_id)
-        await update.message.reply_text(f"Done.")
 
     session["timer"] = asyncio.create_task(process_after_idle())
 
@@ -297,9 +298,20 @@ async def process_find_batch(update: Update, context: ContextTypes.DEFAULT_TYPE,
             distances = face_recognition.face_distance(known_faces, f)
             if distances.size == 0:
                 continue
-            best_idx = int(np.argmin(distances))
+            sorted_indices = np.argsort(distances)
+            best_idx = int(sorted_indices[0])
             best_distance = float(distances[best_idx])
-            if best_distance <= TOLERANCE:
+            
+            # Confidence check: best match should be significantly better than second-best
+            confident_match = True
+            if distances.size > 1:
+                second_best_distance = float(distances[sorted_indices[1]])
+                confidence_margin = second_best_distance - best_distance
+                if confidence_margin < MIN_CONFIDENCE_MARGIN:
+                    # Second-best is too close, might be ambiguous/false positive
+                    confident_match = False
+            
+            if best_distance <= TOLERANCE and confident_match:
                 match_found = True
                 name = known_names[best_idx]
                 matched_names.add(name)
