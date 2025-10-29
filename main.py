@@ -29,6 +29,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Keep INFO logs but suppress only httpx lines for Telegram getUpdates
+class _SuppressGetUpdatesFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            msg = record.getMessage()
+        except Exception:
+            return True
+        return "getUpdates" not in msg
+
+_httpx_logger = logging.getLogger("httpx")
+_httpx_logger.setLevel(logging.INFO)
+_httpx_logger.addFilter(_SuppressGetUpdatesFilter())
+
 # ---------------- Constants ----------------
 AWAITING_NAME, COLLECTING_PHOTOS, AWAITING_DELETE_CHOICE = range(3)
 MIN_PHOTOS = 3
