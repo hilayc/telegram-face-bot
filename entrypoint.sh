@@ -44,6 +44,7 @@ load_env_from_options FACE_MATCH_TOLERANCE
 load_env_from_options FACE_DETECTION_MODEL
 load_env_from_options FACE_TRAIN_JITTERS
 load_env_from_options FACE_FIND_JITTERS
+load_env_from_options FACE_MIN_CONFIDENCE_MARGIN
 load_env_from_options FACE_USE_MEAN_ENCODING
 
 exec python /app/main.py
