@@ -32,8 +32,8 @@ logger = logging.getLogger(__name__)
 # ---------------- Constants ----------------
 AWAITING_NAME, COLLECTING_PHOTOS, AWAITING_DELETE_CHOICE = range(3)
 MIN_PHOTOS = 3
-DATA_DIR = "data"
-TELEGRAM_BOT_API_TOKEN = "API_TOKEN"  # <-- Replace with your token
+DATA_DIR = "/data"
+TELEGRAM_BOT_API_TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
 
 user_sessions = {}
 

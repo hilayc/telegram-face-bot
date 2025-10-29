@@ -1,0 +1,17 @@
+#!/usr/bin/with-contenv bash
+set -euo pipefail
+
+# Read options from Home Assistant
+BOT_TOKEN=$(jq -r '.bot_token // empty' /data/options.json)
+
+if [ -z "${BOT_TOKEN:-}" ]; then
+  echo "[ERROR] 'bot_token' is not set in add-on options." >&2
+  exit 1
+fi
+
+export TELEGRAM_BOT_API_TOKEN="$BOT_TOKEN"
+
+cd /opt/telegram-face-bot
+exec python3 /opt/telegram-face-bot/main.py
+
+
