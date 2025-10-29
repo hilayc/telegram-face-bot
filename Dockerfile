@@ -35,6 +35,10 @@ RUN mkdir -p /data
 VOLUME ["/data"]
 
 # Run the bot; token is read from env TELEGRAM_BOT_API_TOKEN
-CMD ["python", "/app/main.py"]
+# Add entrypoint that reads HA add-on options.json if env not set
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]
 
 
