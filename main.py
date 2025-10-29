@@ -53,6 +53,11 @@ TELEGRAM_BOT_API_TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
 TOLERANCE = float(os.getenv("FACE_MATCH_TOLERANCE", "0.45"))
 # Detection model: 'hog' (CPU, fast) or 'cnn' (more accurate, slower)
 DETECTION_MODEL = os.getenv("FACE_DETECTION_MODEL", "hog").lower()
+# Increase jitters to make encodings more stable (slower but more accurate)
+TRAIN_NUM_JITTERS = int(os.getenv("FACE_TRAIN_JITTERS", "2"))
+FIND_NUM_JITTERS = int(os.getenv("FACE_FIND_JITTERS", "1"))
+# If true, compare against per-person mean encoding instead of all samples
+USE_MEAN_ENCODING = os.getenv("FACE_USE_MEAN_ENCODING", "true").lower() in ("1", "true", "yes")
 
 user_sessions = {}
 
@@ -150,7 +155,11 @@ async def receive_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 np_img = pil_to_rgb_uint8_np(Image.open(file_path))
                 face_locations = face_recognition.face_locations(np_img, model=DETECTION_MODEL)
-                faces = face_recognition.face_encodings(np_img, known_face_locations=face_locations)
+                faces = face_recognition.face_encodings(
+                    np_img,
+                    known_face_locations=face_locations,
+                    num_jitters=TRAIN_NUM_JITTERS,
+                )
             except Exception as e:
                 logger.error(f"Error in {file_path}: {e}")
                 continue
@@ -210,7 +219,9 @@ async def queue_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async def process_after_idle():
         await asyncio.sleep(5)
+        await update.message.reply_text(f"Processing photo batch...")
         await process_find_batch(update, context, user_id)
+        await update.message.reply_text(f"Done.")
 
     session["timer"] = asyncio.create_task(process_after_idle())
 
@@ -226,12 +237,28 @@ async def process_find_batch(update: Update, context: ContextTypes.DEFAULT_TYPE,
         user_sessions.pop(user_id, None)
         return
 
-    known_faces, known_names = [], []
+    # Build known encodings, optionally aggregated by person
+    per_name_encodings = {}
     for name in os.listdir(user_folder):
         folder_path = os.path.join(user_folder, name)
         enc_file = os.path.join(folder_path, "encodings.pkl")
         if os.path.exists(enc_file):
             encs = load_encodings(enc_file)
+            if encs:
+                per_name_encodings[name] = encs
+
+    known_faces, known_names = [], []
+    if USE_MEAN_ENCODING and per_name_encodings:
+        for name, encs in per_name_encodings.items():
+            try:
+                mean_enc = np.mean(np.stack(encs, axis=0), axis=0)
+            except Exception:
+                # Fallback if any enc vector is malformed
+                mean_enc = encs[0]
+            known_faces.append(mean_enc)
+            known_names.append(name)
+    else:
+        for name, encs in per_name_encodings.items():
             known_faces.extend(encs)
             known_names.extend([name] * len(encs))
 
@@ -250,7 +277,11 @@ async def process_find_batch(update: Update, context: ContextTypes.DEFAULT_TYPE,
             img = Image.open(bio).convert("RGB")
             np_img = pil_to_rgb_uint8_np(img)
             face_locations = face_recognition.face_locations(np_img, model=DETECTION_MODEL)
-            faces = face_recognition.face_encodings(np_img, known_face_locations=face_locations)
+            faces = face_recognition.face_encodings(
+                np_img,
+                known_face_locations=face_locations,
+                num_jitters=FIND_NUM_JITTERS,
+            )
         except Exception as e:
             logger.error(f"Error reading photo: {e}")
             continue

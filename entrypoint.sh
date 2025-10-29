@@ -42,21 +42,9 @@ load_env_from_options() {
 load_env_from_options TELEGRAM_BOT_API_TOKEN
 load_env_from_options FACE_MATCH_TOLERANCE
 load_env_from_options FACE_DETECTION_MODEL
-
-if [ -z "${TELEGRAM_BOT_API_TOKEN:-}" ]; then
-  echo "[entrypoint] ERROR: TELEGRAM_BOT_API_TOKEN is not set. Exiting." >&2
-  exit 1
-fi
-
-if [ -z "${FACE_MATCH_TOLERANCE:-}" ]; then
-  echo "[entrypoint] ERROR: FACE_MATCH_TOLERANCE is not set. Exiting." >&2
-  exit 1
-fi
-
-if [ -z "${FACE_DETECTION_MODEL:-}" ]; then
-  echo "[entrypoint] ERROR: FACE_DETECTION_MODEL is not set. Exiting." >&2
-  exit 1
-fi
+load_env_from_options FACE_TRAIN_JITTERS
+load_env_from_options FACE_FIND_JITTERS
+load_env_from_options FACE_USE_MEAN_ENCODING
 
 exec python /app/main.py
 
