@@ -29,11 +29,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Keep INFO logs but suppress only httpx lines for Telegram getUpdates
+class _SuppressGetUpdatesFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            msg = record.getMessage()
+        except Exception:
+            return True
+        return "getUpdates" not in msg
+
+_httpx_logger = logging.getLogger("httpx")
+_httpx_logger.setLevel(logging.INFO)
+_httpx_logger.addFilter(_SuppressGetUpdatesFilter())
+
 # ---------------- Constants ----------------
 AWAITING_NAME, COLLECTING_PHOTOS, AWAITING_DELETE_CHOICE = range(3)
 MIN_PHOTOS = 3
-DATA_DIR = "/data"
+DATA_DIR = "/config/known_faces"
 TELEGRAM_BOT_API_TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
+
+# Recognition tuning
+# Lower tolerance = stricter matching. Typical range: 0.4 (strict) to 0.6 (loose)
+TOLERANCE = float(os.getenv("FACE_MATCH_TOLERANCE", "0.45"))
+# Detection model: 'hog' (CPU, fast) or 'cnn' (more accurate, slower)
+DETECTION_MODEL = os.getenv("FACE_DETECTION_MODEL", "hog").lower()
 
 user_sessions = {}
 
@@ -130,7 +149,8 @@ async def receive_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
             image_paths.append(file_path)
             try:
                 np_img = pil_to_rgb_uint8_np(Image.open(file_path))
-                faces = face_recognition.face_encodings(np_img)
+                face_locations = face_recognition.face_locations(np_img, model=DETECTION_MODEL)
+                faces = face_recognition.face_encodings(np_img, known_face_locations=face_locations)
             except Exception as e:
                 logger.error(f"Error in {file_path}: {e}")
                 continue
@@ -229,7 +249,8 @@ async def process_find_batch(update: Update, context: ContextTypes.DEFAULT_TYPE,
         try:
             img = Image.open(bio).convert("RGB")
             np_img = pil_to_rgb_uint8_np(img)
-            faces = face_recognition.face_encodings(np_img)
+            face_locations = face_recognition.face_locations(np_img, model=DETECTION_MODEL)
+            faces = face_recognition.face_encodings(np_img, known_face_locations=face_locations)
         except Exception as e:
             logger.error(f"Error reading photo: {e}")
             continue
@@ -238,11 +259,18 @@ async def process_find_batch(update: Update, context: ContextTypes.DEFAULT_TYPE,
             continue
 
         match_found = False
+        # Choose the best match by minimal distance across all known encodings
         for f in faces:
-            results = face_recognition.compare_faces(known_faces, f, tolerance=0.5)
-            if any(results):
+            if not known_faces:
+                continue
+            distances = face_recognition.face_distance(known_faces, f)
+            if distances.size == 0:
+                continue
+            best_idx = int(np.argmin(distances))
+            best_distance = float(distances[best_idx])
+            if best_distance <= TOLERANCE:
                 match_found = True
-                name = known_names[results.index(True)]
+                name = known_names[best_idx]
                 matched_names.add(name)
                 break
 
@@ -334,6 +362,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------- MAIN ----------
 def main():
+    os.makedirs(DATA_DIR, exist_ok=True)
     application = ApplicationBuilder().token(TELEGRAM_BOT_API_TOKEN).build()
 
     conv_handler = ConversationHandler(
