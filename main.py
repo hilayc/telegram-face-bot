@@ -347,6 +347,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------- MAIN ----------
 def main():
+    os.makedirs(DATA_DIR, exist_ok=True)
     application = ApplicationBuilder().token(TELEGRAM_BOT_API_TOKEN).build()
 
     conv_handler = ConversationHandler(

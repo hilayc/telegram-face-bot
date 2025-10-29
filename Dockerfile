@@ -33,8 +33,7 @@ COPY dlib /app/dlib
 
 # Data directory for stored encodings per user (matches main.py DATA_DIR="/data")
 RUN mkdir -p /data
-RUN mkdir -p /config/known_faces
-VOLUME ["/data", "/config/known_faces"]
+VOLUME ["/data"]
 
 # Run the bot; token is read from env TELEGRAM_BOT_API_TOKEN
 # Add entrypoint that reads HA add-on options.json if env not set
