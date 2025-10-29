@@ -11,6 +11,7 @@ RUN apt-get update \
        libjpeg62-turbo-dev \
        libpng-dev \
        zlib1g-dev \
+       jq \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
