@@ -23,11 +23,13 @@ from telegram.ext import (
     filters,
 )
 
+# ---------------- Logging ----------------
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
+# ---------------- Constants ----------------
 AWAITING_NAME, COLLECTING_PHOTOS, AWAITING_DELETE_CHOICE = range(3)
 MIN_PHOTOS = 3
 DATA_DIR = "/data"
@@ -35,6 +37,7 @@ TELEGRAM_BOT_API_TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
 
 user_sessions = {}
 
+# ---------------- Utility Functions ----------------
 def get_user_folder(user_id: int):
     return os.path.join(DATA_DIR, str(user_id))
 
@@ -70,6 +73,7 @@ def hash_bytesio(bio):
     bio.seek(0)
     return hashlib.sha256(bio.read()).hexdigest()
 
+# ---------------- Bot Handlers ----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Hello! You can:\n"
@@ -80,6 +84,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "I'll try to find known faces in them."
     )
 
+# ---------- ADD ----------
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     user_sessions[user_id] = {"state": AWAITING_NAME, "name": None, "photos": []}
@@ -138,6 +143,7 @@ async def receive_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         save_encodings(encodings, os.path.join(folder, "encodings.pkl"))
 
+        # 🧹 Delete training images after encodings saved
         for img_path in image_paths:
             try:
                 os.remove(img_path)
@@ -162,6 +168,7 @@ async def receive_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Please send a photo or type 'done'.")
     return COLLECTING_PHOTOS
 
+# ---------- AUTO FIND ----------
 async def queue_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     session = user_sessions.setdefault(user_id, {"find_photos": [], "hashes": set(), "timer": None})
@@ -253,6 +260,7 @@ async def process_find_batch(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     user_sessions.pop(user_id, None)
 
+# ---------- LIST ----------
 async def list_faces(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     user_folder = get_user_folder(user_id)
@@ -266,6 +274,7 @@ async def list_faces(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("🧠 Known faces:\n" + "\n".join(f"• {n}" for n in names))
 
+# ---------- DELETE ----------
 async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     user_folder = get_user_folder(user_id)
@@ -278,10 +287,12 @@ async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No known faces to delete.")
         return ConversationHandler.END
 
+    # Send reply keyboard with names as rows
     keyboard = [[name] for name in names]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
     await update.message.reply_text("Select a face to delete:", reply_markup=reply_markup)
 
+    # Save state for delete selection
     user_sessions[user_id] = {"state": AWAITING_DELETE_CHOICE}
     return AWAITING_DELETE_CHOICE
 
@@ -291,6 +302,7 @@ async def handle_delete_choice(update: Update, context: ContextTypes.DEFAULT_TYP
     user_folder = get_user_folder(user_id)
     folder = get_name_folder(user_id, name)
 
+    # Only allow delete if keyboard is active
     session = user_sessions.get(user_id)
     if not session or session.get("state") != AWAITING_DELETE_CHOICE:
         await update.message.reply_text("Please use /delete first.")
@@ -310,6 +322,7 @@ async def handle_delete_choice(update: Update, context: ContextTypes.DEFAULT_TYP
     user_sessions.pop(user_id, None)
     return ConversationHandler.END
 
+# ---------- CANCEL ----------
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     if user_id in user_sessions:
@@ -319,6 +332,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Operation cancelled.", reply_markup=None)
     return ConversationHandler.END
 
+# ---------- MAIN ----------
 def main():
     application = ApplicationBuilder().token(TELEGRAM_BOT_API_TOKEN).build()
 
@@ -349,5 +363,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

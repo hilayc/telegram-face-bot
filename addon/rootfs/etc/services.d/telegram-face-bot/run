@@ -1,11 +1,11 @@
 #!/usr/bin/with-contenv bash
 set -euo pipefail
 
-# Read options from Home Assistant
-TOKEN=$(jq -r '.TELEGRAM_BOT_API_TOKEN // empty' /data/options.json)
+# Read options from Home Assistant (support new and legacy key)
+TOKEN=$(jq -r '(.TELEGRAM_BOT_API_TOKEN // .bot_token // empty)' /data/options.json)
 
 if [ -z "${TOKEN:-}" ]; then
-  echo "[ERROR] 'TELEGRAM_BOT_API_TOKEN' is not set in add-on options." >&2
+  echo "[ERROR] No token provided. Set 'TELEGRAM_BOT_API_TOKEN' in add-on options." >&2
   exit 1
 fi
 
