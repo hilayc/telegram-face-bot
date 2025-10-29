@@ -5,7 +5,8 @@ set -e
 load_env_from_options() {
   var_name="$1"; shift
   # If already set, respect existing value
-  if [ -n "${!var_name:-}" ]; then
+  eval "__cur_val=\${$var_name:-}"
+  if [ -n "$__cur_val" ]; then
     return 0
   fi
   if [ ! -f /data/options.json ]; then
@@ -15,10 +16,12 @@ load_env_from_options() {
   # Build a jq expression like (.KEY1 // .KEY2 // empty)
   # If no keys provided, default to the same name as the env var
   if [ "$#" -eq 0 ]; then
-    set -- "$var_name"
+    keys="$var_name"
+  else
+    keys="$*"
   fi
   jq_expr=""
-  for key in "$@"; do
+  for key in $keys; do
     if [ -z "$jq_expr" ]; then
       jq_expr="(.${key}"
     else
@@ -28,7 +31,9 @@ load_env_from_options() {
   jq_expr="${jq_expr} // empty)"
   val=$(jq -r "$jq_expr" /data/options.json 2>/dev/null || true)
   if [ -n "$val" ] && [ "$val" != "null" ]; then
-    export "$var_name"="$val"
+    # POSIX-safe assignment/export for dynamic var name
+    eval "$var_name=\"\$val\""
+    export "$var_name"
     echo "[entrypoint] Loaded $var_name from /data/options.json"
   fi
 }
