@@ -5,6 +5,7 @@ description: Telegram bot that learns and recognizes faces from photos
 url: https://github.com/hilayc/telegram-face-bot
 arch:
   - amd64
+image: hilayc9/telegram-face-bot
 startup: application
 boot: auto
 init: false

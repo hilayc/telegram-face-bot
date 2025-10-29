@@ -1,4 +1,4 @@
-ARG BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19
 FROM $BUILD_FROM
 
 ENV \
@@ -28,12 +28,12 @@ RUN apt-get update \
 
 WORKDIR /opt/telegram-face-bot
 
-# Install Python dependencies
+# Install Python dependencies (from add-on context)
 COPY requirements.txt /opt/telegram-face-bot/requirements.txt
 RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel \
   && pip3 install --no-cache-dir -r requirements.txt face_recognition
 
-# Copy application code
+# Copy application code (from add-on context)
 COPY main.py /opt/telegram-face-bot/main.py
 
 # S6 service files

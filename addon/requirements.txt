@@ -1,0 +1,8 @@
+numpy==2.3.4
+pillow==12.0.0
+python-telegram-bot==22.5
+face_recognition
+cryptography
+cffi
+
+
